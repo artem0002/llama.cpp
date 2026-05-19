@@ -1,11 +1,11 @@
-name: Build CPU-only Windows with DLLs
+name: Build CPU-only Windows MSVC
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
@@ -14,10 +14,13 @@ jobs:
       - name: Install Ninja
         run: choco install ninja
 
-      - name: Configure CMake (CPU only)
+      - name: Build with MSVC
         shell: cmd
         run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake -S . -B build -G "Ninja Multi-Config" ^
+            -DCMAKE_C_COMPILER=cl ^
+            -DCMAKE_CXX_COMPILER=cl ^
             -DBUILD_SHARED_LIBS=ON ^
             -DLLAMA_BUILD_SERVER=ON ^
             -DGGML_NATIVE=OFF ^
@@ -31,17 +34,14 @@ jobs:
             -DGGML_CANN=OFF ^
             -DGGML_MUSA=OFF ^
             -DGGML_RPC=OFF ^
-            -DGGML_BACKEND_DL=OFF
-
-      - name: Build
-        shell: cmd
-        run: |
+            -DGGML_BACKEND_DL=OFF ^
+            -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded"
           cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 
       - name: Upload EXE and DLLs
         uses: actions/upload-artifact@v4
         with:
-          name: llama-cpu-windows
+          name: llama-cpu-windows-msvc
           path: |
             build/bin/Release/*.exe
             build/bin/Release/*.dll
