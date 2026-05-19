@@ -1,0 +1,47 @@
+name: Build CPU-only Windows with DLLs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: choco install ninja
+
+      - name: Configure CMake (CPU only)
+        shell: cmd
+        run: |
+          cmake -S . -B build -G "Ninja Multi-Config" ^
+            -DBUILD_SHARED_LIBS=ON ^
+            -DLLAMA_BUILD_SERVER=ON ^
+            -DGGML_NATIVE=OFF ^
+            -DGGML_BLAS=OFF ^
+            -DGGML_CUDA=OFF ^
+            -DGGML_VULKAN=OFF ^
+            -DGGML_METAL=OFF ^
+            -DGGML_SYCL=OFF ^
+            -DGGML_HIP=OFF ^
+            -DGGML_OPENCL=OFF ^
+            -DGGML_CANN=OFF ^
+            -DGGML_MUSA=OFF ^
+            -DGGML_RPC=OFF ^
+            -DGGML_BACKEND_DL=OFF
+
+      - name: Build
+        shell: cmd
+        run: |
+          cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
+
+      - name: Upload EXE and DLLs
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-cpu-windows
+          path: |
+            build/bin/Release/*.exe
+            build/bin/Release/*.dll
