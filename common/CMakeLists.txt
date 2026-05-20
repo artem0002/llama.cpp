@@ -101,6 +101,7 @@ add_library(${TARGET}
     sampling.cpp
     sampling.h
     speculative.cpp
+    speculative-mlsd.cpp
     speculative.h
     unicode.cpp
     unicode.h
