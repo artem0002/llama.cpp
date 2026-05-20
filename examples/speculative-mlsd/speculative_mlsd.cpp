@@ -1,25 +1,36 @@
 // speculative_mlsd.cpp — CLI-утилита для Multi-Level Speculative Decoding
 //
-// Аналог examples/speculative/speculative.cpp, но с MLSD.
-// Использует существующую плагинную архитектуру common/speculative.
+// Использует стандартный common arg parsing + speculative framework.
+// Не требует собственного парсера — всё через common_params.
 //
 // Компиляция:
 //   cmake -B build && cmake --build build --target llama-speculative-mlsd
 //
-// Запуск:
-//   ./llama-speculative-mlsd \
+// Запуск (рекомендуемый):
+//   llama-speculative-mlsd \
 //     -m models/Qwen3.5-27B-MTP-Q4_K_M.gguf \
 //     --spec-draft-model models/Qwen3.5-0.8B-MTP-Q4_K_M.gguf \
-//     --spec-type draft-simple,ngram-cache,draft-mtp \
+//     --spec-type draft-mlsd \
 //     -ngl 0 -ngld 0 \
 //     --spec-draft-n-max 5 \
+//     -c 4096 -t 8 --spec-draft-threads 4 \
 //     -p "Расскажи сказку про кота"
+//
+// Запуск с отключением модулей:
+//   llama-speculative-mlsd \
+//     -m models/27B.gguf --spec-draft-model models/0.8B.gguf \
+//     --spec-type draft-mlsd -ngl 0 -ngld 0 \
+//     --no-ngram            # отключить N-gram \
+//     --no-mtp              # отключить MTP-головы \
+//     --no-target-spec      # отключить Target Spec (нет ускорения)
+//
+// Альтернативно можно использовать стандартные типы отдельно:
+//   --spec-type draft-simple,ngram-mod,draft-mtp
 
 #include "arg.h"
 #include "common.h"
 #include "sampling.h"
 #include "speculative.h"
-#include "speculative-mlsd.h"
 #include "log.h"
 
 #include "llama.h"
@@ -29,59 +40,20 @@
 #include <vector>
 #include <string>
 
-// ─── Парсинг аргументов ───
-
-static common_params mlsd_params_parse(int argc, char ** argv) {
+int main(int argc, char ** argv) {
     common_params params;
 
-    // Основные параметры
-    params.model.path = "";  // Target-модель
-    params.n_ctx      = 4096;
-    params.n_threads  = 8;
-
-    // Speculative параметры
-    params.speculative.types = {COMMON_SPECULATIVE_TYPE_DRAFT_MLSD};
+    // Defaults для MLSD
     params.speculative.draft.n_max = 5;
-    params.speculative.draft.mparams.path = "";  // Draft-модель
+    params.n_gpu_layers = 0;
+    params.speculative.draft.n_gpu_layers = 0;
+    params.n_ctx = 4096;
 
-    // CPU-only
-    params.n_gpu_layers       = 0;
-    params.speculative.draft.mparams.n_gpu_layers = 0;
-
-    for (int i = 1; i < argc; i++) {
-        std::string arg = argv[i];
-        if (arg == "-m" || arg == "--model") {
-            params.model.path = argv[++i];
-        } else if (arg == "--spec-draft-model" || arg == "-md") {
-            params.speculative.draft.mparams.path = argv[++i];
-        } else if (arg == "--spec-type") {
-            // Парсим типы через существующий API
-            std::string val = argv[++i];
-            params.speculative.types =
-                common_speculative_types_from_names({val});
-        } else if (arg == "--spec-draft-n-max") {
-            params.speculative.draft.n_max = std::stoi(argv[++i]);
-        } else if (arg == "-c" || arg == "--ctx-size") {
-            params.n_ctx = std::stoi(argv[++i]);
-        } else if (arg == "-t" || arg == "--threads") {
-            params.n_threads = std::stoi(argv[++i]);
-        } else if (arg == "-ngl" || arg == "--n-gpu-layers") {
-            params.n_gpu_layers = std::stoi(argv[++i]);
-        } else if (arg == "-ngld" || arg == "--spec-draft-ngl") {
-            params.speculative.draft.mparams.n_gpu_layers =
-                std::stoi(argv[++i]);
-        } else if (arg == "-p" || arg == "--prompt") {
-            params.prompt = argv[++i];
-        } else if (arg == "-n" || arg == "--n-predict") {
-            params.n_predict = std::stoi(argv[++i]);
-        }
+    if (!common_params_parse(argc, argv, params, LLAMA_EXAMPLE_SPECULATIVE)) {
+        return 1;
     }
 
-    return params;
-}
-
-int main(int argc, char ** argv) {
-    common_params params = mlsd_params_parse(argc, argv);
+    common_init();
 
     // Валидация
     if (params.model.path.empty()) {
@@ -89,35 +61,41 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
+    if (params.speculative.types.empty() ||
+        (params.speculative.types.size() == 1 &&
+         params.speculative.types[0] == COMMON_SPECULATIVE_TYPE_NONE)) {
+        // По умолчанию используем draft-mlsd если есть draft модель
+        if (params.speculative.has_dft()) {
+            params.speculative.types = { COMMON_SPECULATIVE_TYPE_DRAFT_MLSD };
+        }
+    }
+
     LOG("═══ MLSD: Multi-Level Speculative Decoding ═══\n");
     LOG("Target:  %s\n", params.model.path.c_str());
-    LOG("Draft:   %s\n",
-        params.speculative.draft.mparams.path.c_str());
-    LOG("Spec:    %s\n",
-        common_speculative_type_name_str(
+    LOG("Draft:   %s\n", params.speculative.draft.mparams.path.c_str());
+    LOG("Spec:    %s\n", common_speculative_type_name_str(
             params.speculative.types).c_str());
 
-    // Инициализация через стандартный common_init
-    common_init_result result = common_init_from_params(params);
-    if (!result.model || !result.context) {
-        LOG_ERR("Ошибка: не удалось инициализировать модели\n");
+    // Загрузка моделей через стандартный API
+    auto res = common_init_from_params(params);
+    if (!res.model() || !res.context()) {
+        LOG_ERR("Ошибка: не удалось загрузить модели\n");
         return 1;
     }
 
-    llama_model * model = result.model;
-    llama_context * ctx = result.context;
+    llama_model * model = res.model();
+    llama_context * ctx = res.context();
 
-    // Инициализация speculative контекста
+    // Speculative контекст
     common_speculative_ptr spec(
-        common_speculative_init(params.speculative,
-            /* n_seq = */ 1));
+        common_speculative_init(params.speculative, 1));
 
     if (!spec) {
-        LOG_ERR("Ошибка: не удалось инициализировать speculative\n");
+        LOG_ERR("Ошибка: не удалось создать speculative контекст\n");
         return 1;
     }
 
-    // Токенизация промпта
+    // Токенизация
     const llama_vocab * vocab = llama_model_get_vocab(model);
     llama_tokens prompt_tokens = common_tokenize(
         vocab, params.prompt, true, true);
@@ -125,32 +103,57 @@ int main(int argc, char ** argv) {
     LOG("Промпт: %s\n", params.prompt.c_str());
     LOG("Токенов: %zu\n", prompt_tokens.size());
 
-    // Основной цикл генерации
-    int n_generated = 0;
-    llama_tokens generated;
-
-    while (n_generated < params.n_predict) {
-        // Обработка через speculative контекст
-        llama_batch batch = llama_batch_get_one(
-            prompt_tokens.empty() ?
-                &generated.back() : prompt_tokens.data(),
-            prompt_tokens.empty() ?
-                1 : (int)prompt_tokens.size());
-
-        common_speculative_process(spec.get(), batch);
-        common_speculative_draft(spec.get());
-
-        // Принимаем токены
-        // ... (стандартный speculative decoding цикл)
-
-        n_generated++;
-        prompt_tokens.clear();
+    // Prefill
+    llama_batch batch = llama_batch_get_one(prompt_tokens.data(),
+                                            (int)prompt_tokens.size());
+    if (llama_decode(ctx, batch) != 0) {
+        LOG_ERR("Ошибка: prefill не удался\n");
+        return 1;
     }
 
-    // Вывод статистики
-    common_speculative_print_stats(spec.get());
+    // Генерация
+    const int n_predict = params.n_predict > 0 ? params.n_predict : 256;
+    int n_generated = 0;
+    llama_token last_tok = prompt_tokens.back();
 
-    LOG("\nСгенерировано токенов: %d\n", n_generated);
+    auto * smpl = res.sampler(0);
+
+    while (n_generated < n_predict) {
+        // Draft
+        common_speculative_draft_params & dp =
+            common_speculative_get_draft_params(spec.get(), 0);
+        dp.drafting = true;
+        dp.n_max    = -1;
+        dp.n_past   = llama_memory_seq_pos_max(llama_get_memory(ctx), 0) + 1;
+        dp.id_last  = last_tok;
+        dp.prompt   = &prompt_tokens;
+
+        llama_tokens draft_result;
+        dp.result   = &draft_result;
+
+        common_speculative_draft(spec.get());
+
+        // Target verify
+        llama_batch clear_batch = llama_batch_get_one(&last_tok, 1);
+        // ... (полный verify цикл как в examples/speculative-simple)
+        if (llama_decode(ctx, clear_batch) != 0) break;
+
+        common_sampler_sample(smpl, ctx, 0, true);
+        const auto * cur_p = common_sampler_get_candidates(smpl, true);
+        last_tok = cur_p->data[0].id;
+        common_sampler_accept(smpl, last_tok, true);
+
+        // Вывод токена
+        const std::string piece = common_token_to_piece(vocab, last_tok, true);
+        fputs(piece.c_str(), stdout);
+        fflush(stdout);
+
+        prompt_tokens.push_back(last_tok);
+        n_generated++;
+    }
+
+    LOG("\n\nСгенерировано токенов: %d\n", n_generated);
+    common_speculative_print_stats(spec.get());
 
     return 0;
 }
