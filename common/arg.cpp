@@ -3760,6 +3760,104 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}));
 
+    // ─── MLSD convenience flags ───
+ 
+    add_opt(common_arg(
+        {"--no-self-spec"},
+        "disable self-speculative decoding (ngram + mtp on draft model)",
+        [](common_params & params) {
+            // Удаляем все self-speculative типы
+            auto & types = params.speculative.types;
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_SIMPLE),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_MAP_K),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_MAP_K4V),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_MOD),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_CACHE),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_DRAFT_MTP),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_DRAFT_MLSD),
+                types.end());
+        }
+    ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}));
+ 
+    add_opt(common_arg(
+        {"--no-mtp"},
+        "disable MTP (multi-token prediction) draft heads",
+        [](common_params & params) {
+            auto & types = params.speculative.types;
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_DRAFT_MTP),
+                types.end());
+            params.speculative.mlsd.use_draft_mtp = false;
+        }
+    ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}));
+ 
+    add_opt(common_arg(
+        {"--no-ngram"},
+        "disable ngram-based self-speculative decoding",
+        [](common_params & params) {
+            auto & types = params.speculative.types;
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_SIMPLE),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_MAP_K),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_MAP_K4V),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_MOD),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_NGRAM_CACHE),
+                types.end());
+            params.speculative.mlsd.use_ngram_mod = false;
+        }
+    ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}));
+ 
+    add_opt(common_arg(
+        {"--no-target-spec"},
+        "disable draft→target speculative decoding (no speedup)",
+        [](common_params & params) {
+            auto & types = params.speculative.types;
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_DRAFT_SIMPLE),
+                types.end());
+            types.erase(
+                std::remove(types.begin(), types.end(),
+                    COMMON_SPECULATIVE_TYPE_DRAFT_MLSD),
+                types.end());
+            params.speculative.mlsd.no_target_spec = true;
+        }
+    ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}));
+    
     //
     // removed params
     //
