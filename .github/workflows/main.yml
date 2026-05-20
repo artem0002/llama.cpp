@@ -1,4 +1,4 @@
-name: Build CPU-only Windows MSVC
+name: Build CPU-only Windows Static
 
 on:
   workflow_dispatch:
@@ -14,15 +14,16 @@ jobs:
       - name: Install Ninja
         run: choco install ninja
 
-      - name: Build with MSVC
+      - name: Build static EXE
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake -S . -B build -G "Ninja Multi-Config" ^
             -DCMAKE_C_COMPILER=cl ^
             -DCMAKE_CXX_COMPILER=cl ^
-            -DBUILD_SHARED_LIBS=ON ^
+            -DBUILD_SHARED_LIBS=OFF ^
             -DLLAMA_BUILD_SERVER=ON ^
+            -DLLAMA_BUILD_BORINGSSL=OFF ^
             -DGGML_NATIVE=OFF ^
             -DGGML_BLAS=OFF ^
             -DGGML_CUDA=OFF ^
@@ -38,10 +39,8 @@ jobs:
             -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded"
           cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 
-      - name: Upload EXE and DLLs
+      - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: llama-cpu-windows-msvc
-          path: |
-            build/bin/Release/*.exe
-            build/bin/Release/*.dll
+          name: llama-cpu-windows-static
+          path: build/bin/Release/*.exe
