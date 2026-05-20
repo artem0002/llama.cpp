@@ -1,4 +1,4 @@
-name: Build CPU-only Windows Static
+name: Build CPU-only Windows Static NoSSL
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ jobs:
       - name: Install Ninja
         run: choco install ninja
 
-      - name: Build static EXE
+      - name: Build static EXE (no SSL)
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
@@ -23,7 +23,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=cl ^
             -DBUILD_SHARED_LIBS=OFF ^
             -DLLAMA_BUILD_SERVER=ON ^
-            -DLLAMA_BUILD_BORINGSSL=OFF ^
+            -DLLAMA_OPENSSL=OFF ^
             -DGGML_NATIVE=OFF ^
             -DGGML_BLAS=OFF ^
             -DGGML_CUDA=OFF ^
@@ -42,5 +42,5 @@ jobs:
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: llama-cpu-windows-static
+          name: llama-cpu-windows-static-nossl
           path: build/bin/Release/*.exe
