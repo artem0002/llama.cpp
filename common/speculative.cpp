@@ -9,6 +9,7 @@
 #include "ngram-map.h"
 #include "ngram-mod.h"
 #include "sampling.h"
+#include "speculative-mlsd.h"
 
 #include <algorithm>
 #include <cassert>
@@ -29,7 +30,8 @@ const std::map<std::string, common_speculative_type> common_speculative_type_fro
     {"ngram-map-k",   COMMON_SPECULATIVE_TYPE_NGRAM_MAP_K},
     {"ngram-map-k4v", COMMON_SPECULATIVE_TYPE_NGRAM_MAP_K4V},
     {"ngram-mod",     COMMON_SPECULATIVE_TYPE_NGRAM_MOD},
-    {"ngram-cache",   COMMON_SPECULATIVE_TYPE_NGRAM_CACHE}
+    {"ngram-cache",   COMMON_SPECULATIVE_TYPE_NGRAM_CACHE},
+    {"draft-mlsd",    COMMON_SPECULATIVE_TYPE_DRAFT_MLSD}
 };
 
 static std::string common_speculative_get_devices_str(const std::vector<ggml_backend_dev_t> & devices) {
@@ -1409,6 +1411,15 @@ common_speculative * common_speculative_init(common_params_speculative & params,
                         params.ngram_cache.lookup_cache_static,
                         params.ngram_cache.lookup_cache_dynamic);
                 impls.push_back(std::make_unique<common_speculative_impl_ngram_cache>(state));
+                break;
+            }
+            case COMMON_SPECULATIVE_TYPE_DRAFT_MLSD: {
+                // MLSD требует ctx_tgt и ctx_dft (как draft-mtp)
+                if (!params.has_dft()) {
+                    LOG_WRN("%s: draft-mlsd requires a draft model\n", __func__);
+                    break;
+                }
+                impls.push_back(new common_speculative_impl_mlsd(params, n_seq));
                 break;
             }
             default:
