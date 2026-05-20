@@ -5,6 +5,7 @@
 #include "llama-cpp.h"
 
 #include "ggml-opt.h"
+#include "speculative-mlsd.h"
 #include "ggml.h"
 
 #include <set>
@@ -166,6 +167,7 @@ enum common_speculative_type {
     COMMON_SPECULATIVE_TYPE_NGRAM_MAP_K4V, // self-speculative decoding with n-gram keys and 4 m-gram values
     COMMON_SPECULATIVE_TYPE_NGRAM_MOD,
     COMMON_SPECULATIVE_TYPE_NGRAM_CACHE,   // self-speculative decoding with 3-level n-gram cache
+    COMMON_SPECULATIVE_TYPE_DRAFT_MLSD,    // Multi-Level Speculative Decoding (draft + ngram + mtp)
     COMMON_SPECULATIVE_TYPE_COUNT          // number of types, unknown type
 };
 
@@ -354,15 +356,19 @@ struct common_params_speculative {
 
     common_params_speculative_ngram_cache ngram_cache;
 
+    // MLSD: Multi-Level Speculative Decoding
+    common_params_speculative_mlsd mlsd;
+
     bool has_dft() const {
         return !draft.mparams.path.empty() || !draft.mparams.hf_repo.empty();
     }
 
     uint32_t need_n_rs_seq() const {
         bool needs_rs_seq = std::any_of(types.begin(), types.end(), [&](auto t) {
-            return t == COMMON_SPECULATIVE_TYPE_DRAFT_MTP;
+            return t == COMMON_SPECULATIVE_TYPE_DRAFT_MTP
+                || t == COMMON_SPECULATIVE_TYPE_DRAFT_MLSD;
         });
-
+        
         return needs_rs_seq ? draft.n_max : 0u;
     }
 };
