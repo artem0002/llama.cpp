@@ -1,5 +1,5 @@
 # .github/workflows/build-mlsd.yml
-# Сборка llama-server + llama-speculative-mlsd для Windows (CPU-only)
+# Сборка сервера llama-server + llama-speculative-mlsd для Windows (CPU-only)
 
 name: Build MLSD for Windows
 
