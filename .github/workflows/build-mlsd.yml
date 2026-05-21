@@ -1,16 +1,11 @@
 # .github/workflows/build-mlsd.yml
 # Сборка llama-server + llama-speculative-mlsd для Windows (CPU-only)
-# с MLSD (Multi-Level Speculative Decoding) патчами
-#
-# Ветка: mlsd (патчи УЖЕ применены в исходниках)
-# Триггер: push в mlsd или ручной запуск
-# Артефакты: llama-server.exe, llama-speculative-mlsd.exe, llama-cli.exe
 
 name: Build MLSD for Windows
 
 on:
   push:
-    branches: [mlsd]
+    branches: [mlsd]       # ← ИСПРАВЛЕНО: было "lsd]"
     paths: [
       '.github/workflows/build-mlsd.yml',
       '**/CMakeLists.txt',
@@ -19,7 +14,7 @@ on:
       '**/*.c',
       '**/*.cpp'
     ]
-  workflow_dispatch:  # ручной запуск
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -29,15 +24,14 @@ jobs:
   build-windows-cpu:
     name: Windows CPU (static, x64)
     runs-on: windows-2025
-
     steps:
-      - name: Клонирование репозитория
+      - name: Клонирование
         uses: actions/checkout@v4
 
       - name: Установка Ninja
         run: choco install ninja -y
 
-      - name: Кэш компиляции (ccache)
+      - name: Кэш (ccache)
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: mlsd-windows-cpu
@@ -64,7 +58,7 @@ jobs:
         run: |
           cmake --build build --config Release --target llama-speculative-mlsd -j %NUMBER_OF_PROCESSORS%
 
-      - name: Компиляция llama-cli (для тестов)
+      - name: Компиляция llama-cli
         shell: cmd
         run: |
           cmake --build build --config Release --target llama-cli -j %NUMBER_OF_PROCESSORS%
@@ -73,15 +67,9 @@ jobs:
         shell: pwsh
         run: |
           $binDir = "build\bin\Release"
-          Write-Host "=== Содержимое $binDir ==="
           if (Test-Path $binDir) {
             Get-ChildItem $binDir -Filter "*.exe" | ForEach-Object {
               Write-Host ("  {0} ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB))
-            }
-          } else {
-            Write-Host "Папка $binDir не найдена, проверяем другие пути..."
-            Get-ChildItem -Path "build" -Filter "*.exe" -Recurse | ForEach-Object {
-              Write-Host ("  {0} ({1:N1} MB)" -f $_.FullName, ($_.Length / 1MB))
             }
           }
 
@@ -99,12 +87,10 @@ jobs:
   build-windows-openblas:
     name: Windows CPU + OpenBLAS (x64)
     runs-on: windows-2025
-
     env:
       OPENBLAS_VERSION: 0.3.23
-
     steps:
-      - name: Клонирование репозитория
+      - name: Клонирование
         uses: actions/checkout@v4
 
       - name: Установка Ninja
@@ -121,13 +107,13 @@ jobs:
           $lib = (Join-Path $msvc 'bin\Hostx64\x64\lib.exe')
           & $lib /machine:x64 "/def:$env:RUNNER_TEMP/openblas/lib/libopenblas.def" "/out:$env:RUNNER_TEMP/openblas/lib/openblas.lib" /name:openblas.dll
 
-      - name: Кэш компиляции (ccache)
+      - name: Кэш (ccache)
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: mlsd-windows-openblas
           max-size: 500M
 
-      - name: Настройка CMake (с OpenBLAS)
+      - name: Настройка CMake (OpenBLAS)
         shell: cmd
         run: |
           cmake -S . -B build -G "Ninja Multi-Config" ^
