@@ -7,7 +7,7 @@
 // типа COMMON_SPECULATIVE_TYPE_DRAFT_MLSD.
 
 #include "speculative-mlsd.h"
-#include "speculative.h"
+#include "speculative-impl.h"
 #include "ngram-mod.h"
 #include "sampling.h"
 #include "log.h"
@@ -490,3 +490,11 @@ struct common_speculative_impl_mlsd : public common_speculative_impl {
         return n_embd > 0;  // true если MTP включён
     }
 };
+
+// ─── Factory function ───
+
+common_speculative_impl * common_speculative_create_mlsd(
+        const common_params_speculative & params,
+        uint32_t n_seq) {
+    return new common_speculative_impl_mlsd(params, n_seq);
+}
