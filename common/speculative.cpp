@@ -1208,7 +1208,6 @@ std::string common_speculative_type_to_str(common_speculative_type type) {
         case COMMON_SPECULATIVE_TYPE_NGRAM_CACHE:   return "ngram-cache";
         case COMMON_SPECULATIVE_TYPE_DRAFT_MLSD:    return "draft-mlsd"; 
         default:                                    return "unknown";
-        default:                                    return "unknown";
     }
 }
 
