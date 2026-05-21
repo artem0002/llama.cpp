@@ -4,66 +4,55 @@
 
 | Файл | Описание |
 |------|----------|
-| common/speculative-mlsd.h | Заголовок MLSD-модуля |
-| common/speculative-mlsd.cpp | Реализация MLSD |
+| common/speculative-mlsd.h | Заголовок MLSD-модуля (конфиг + статистика) |
+| common/speculative-mlsd.cpp | Реализация common_speculative_impl_mlsd |
 | examples/speculative-mlsd/speculative_mlsd.cpp | CLI-утилита |
 | examples/speculative-mlsd/CMakeLists.txt | CMake конфигурация |
 
-## Изменяемые файлы (патчи)
+## Изменяемые файлы (4 патча)
 
-| Файл | Что изменить |
+| Файл | Что добавить |
 |------|-------------|
-| common/common.h | Добавить COMMON_SPECULATIVE_TYPE_DRAFT_MLSD + params |
-| common/speculative.cpp | Зарегистрировать "draft-mlsd" в type map |
-| common/CMakeLists.txt | Добавить speculative-mlsd.cpp в llama-common |
-| examples/CMakeLists.txt | Добавить add_subdirectory(speculative-mlsd) |
+| common/common.h | COMMON_SPECULATIVE_TYPE_DRAFT_MLSD + mlsd params + need_n_rs_seq |
+| common/speculative.cpp | #include + type map + impl creation |
+| common/arg.cpp | --no-self-spec, --no-mtp, --no-ngram, --no-target-spec |
+| tools/server/server-context.cpp | spec_mtp check для DRAFT_MLSD |
 
-## Существующие файлы (НЕ трогать — переиспользуем)
+## CMake патчи (2 строки)
 
-| Файл | Как используем |
+| Файл | Что добавить |
+|------|-------------|
+| common/CMakeLists.txt | speculative-mlsd.cpp в исходники |
+| examples/CMakeLists.txt | add_subdirectory(speculative-mlsd) |
+
+## НЕ ТРОГАТЬ (уже есть в llama.cpp)
+
+| Файл | Что используем |
 |------|---------------|
-| common/ngram-cache.h/.cpp | N-gram Cache (3-уровневый) |
+| common/ngram-cache.h/.cpp | 3-уровневый N-gram кэш |
 | common/ngram-map.h/.cpp | N-gram Map (simple, map-k, map-k4v) |
-| common/ngram-mod.h/.cpp | N-gram Mod (LCG hash) |
-| common/speculative.h/.cpp | Плагинная архитектура спекуляции |
+| common/ngram-mod.h/.cpp | N-gram Mod (LCG hash) ← используем внутри MLSD |
+| common/speculative.h/.cpp | Плагинная архитектура |
 | common/sampling.h/.cpp | Сэмплирование токенов |
 | include/llama.h | LLAMA_CONTEXT_TYPE_MTP уже есть |
-| src/llama-ext.h | Pre-norm embeddings API (для MTP) |
-| src/llama-context.cpp | MTP контекст уже поддерживается |
-| tools/server/server.cpp | Сервер (использует --spec-type) |
-
-## Ключевые API для MLSD
-
-### Speculative Decoding API (common/speculative.h)
-- common_speculative_init() — создать speculative контекст
-- common_speculative_draft() — генерация draft-токенов
-- common_speculative_process() — обработка batch
-- common_speculative_accept() — принятие токенов
-
-### MTP API (src/llama-ext.h)
-- llama_set_embeddings_pre_norm() — включить pre-norm эмбеддинги
-- llama_get_embeddings_pre_norm_ith() — получить эмбеддинги токена
-
-### N-gram API (common/ngram-cache.h)
-- common_ngram_cache — структура кэша
-- Статистики: context/dynamic/static уровни
+| src/llama-ext.h | Pre-norm embeddings API |
+| tools/server/server.cpp | Сервер (подхватывает --spec-type) |
 
 ## Команда запуска (сервер)
 
 llama-server \
   -m models/Qwen3.5-27B-MTP-Q4_K_M.gguf \
   --spec-draft-model models/Qwen3.5-0.8B-MTP-Q4_K_M.gguf \
-  --spec-type draft-simple,ngram-cache,draft-mtp \
+  --spec-type draft-mlsd \
   -ngl 0 -ngld 0 \
   --spec-draft-n-max 5 \
   --host 0.0.0.0 --port 8080
 
-## Команда запуска (CLI)
+## Команда с отключением модулей
 
-llama-speculative-mlsd \
-  -m models/Qwen3.5-27B-MTP-Q4_K_M.gguf \
-  --spec-draft-model models/Qwen3.5-0.8B-MTP-Q4_K_M.gguf \
-  --spec-type draft-simple,ngram-cache,draft-mtp \
-  -ngl 0 -ngld 0 \
-  --spec-draft-n-max 5 \
-  -p "Расскажи сказку про кота"
+llama-server \
+  -m models/27B.gguf --spec-draft-model models/0.8B.gguf \
+  --spec-type draft-mlsd -ngl 0 -ngld 0 \
+  --no-ngram          # отключить N-gram \
+  --no-mtp            # отключить MTP \
+  --no-target-spec    # отключить ускорение
