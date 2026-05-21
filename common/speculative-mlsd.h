@@ -55,14 +55,3 @@ struct mlsd_stats {
             ? (double)n_tokens_generated / n_forward_passes : 1.0;
     }
 };
-
-// ─── Factory function ───
-//
-// Создаёт MLSD implementation. Объявление здесь, реализация в
-// speculative-mlsd.cpp. Используется в speculative.cpp.
-
-struct common_speculative_impl;
-
-common_speculative_impl * common_speculative_create_mlsd(
-        const common_params_speculative & params,
-        uint32_t n_seq);
