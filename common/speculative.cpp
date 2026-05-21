@@ -1245,11 +1245,6 @@ static uint32_t common_get_enabled_speculative_configs(const std::vector<common_
     }
     return result;
 }
-
-// Forward declaration — реализация в speculative-mlsd.cpp
-common_speculative_impl * common_speculative_create_mlsd(
-        const common_params_speculative & params,
-        uint32_t n_seq);
 // initialization of the speculative decoding system
 //
 common_speculative * common_speculative_init(common_params_speculative & params, uint32_t n_seq) {
