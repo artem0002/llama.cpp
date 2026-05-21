@@ -5,7 +5,7 @@ name: Build MLSD for Windows
 
 on:
   push:
-    branches: [mlsd]       # ← ИСПРАВЛЕНО: было "lsd]"
+    branches: [mlsd]
     paths: [
       '.github/workflows/build-mlsd.yml',
       '**/CMakeLists.txt',
