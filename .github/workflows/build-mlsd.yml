@@ -49,7 +49,6 @@ jobs:
             -D GGML_OPENMP=ON ^
             -D LLAMA_BUILD_SERVER=ON ^
             -D LLAMA_BUILD_TOOLS=ON ^
-            -D LLAMA_BUILD_EXAMPLES=OFF ^
             -D LLAMA_BUILD_TESTS=OFF ^
             -D LLAMA_CURL=ON ^
             -D GGML_RPC=OFF
