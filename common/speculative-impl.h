@@ -66,3 +66,7 @@ struct common_speculative_impl {
 
     virtual bool need_embd_pre_norm() const { return false; }
 };
+// Factory function for MLSD — реализация в speculative-mlsd.cpp
+common_speculative_impl * common_speculative_create_mlsd(
+        const common_params_speculative & params,
+        uint32_t n_seq);
