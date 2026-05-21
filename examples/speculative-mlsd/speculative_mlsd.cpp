@@ -78,13 +78,13 @@ int main(int argc, char ** argv) {
 
     // Загрузка моделей через стандартный API
     auto res = common_init_from_params(params);
-    if (!res.model() || !res.context()) {
+    if (!res->model() || !res->context()) {
         LOG_ERR("Ошибка: не удалось загрузить модели\n");
         return 1;
     }
 
-    llama_model * model = res.model();
-    llama_context * ctx = res.context();
+    llama_model * model = res->model();
+    llama_context * ctx = res->context();
 
     // Speculative контекст
     common_speculative_ptr spec(
@@ -116,7 +116,7 @@ int main(int argc, char ** argv) {
     int n_generated = 0;
     llama_token last_tok = prompt_tokens.back();
 
-    auto * smpl = res.sampler(0);
+    auto * smpl = res->sampler(0);
 
     while (n_generated < n_predict) {
         // Draft
