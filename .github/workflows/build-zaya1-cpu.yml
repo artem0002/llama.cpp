@@ -17,7 +17,7 @@ jobs:
           cmake -B build ^
             -DCMAKE_BUILD_TYPE=Release ^
             -DGGML_NATIVE=OFF ^
-            -DLLAMA_CURL=OFF ^
+            -DLLAMA_OPENSSL=OFF ^
             -DBUILD_SHARED_LIBS=OFF ^
             -DGGML_OPENMP=OFF ^
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ^
@@ -29,6 +29,21 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
         shell: cmd
+
+      - name: Test exe
+        run: |
+          $exe = Get-ChildItem -Path build -Filter "llama-cli.exe" -Recurse | Select-Object -First 1
+          if ($exe) {
+            Write-Host "Found llama-cli.exe at: $($exe.FullName)"
+            Write-Host "File size: $($exe.Length) bytes"
+            Write-Host "Running llama-cli --version..."
+            & $exe.FullName --version
+            Write-Host "SUCCESS: exe runs without DLL errors!"
+          } else {
+            Write-Host "ERROR: llama-cli.exe not found!"
+            exit 1
+          }
+        shell: pwsh
 
       - name: Collect
         run: |
