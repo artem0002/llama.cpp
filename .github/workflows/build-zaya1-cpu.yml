@@ -12,12 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build (static, no DLLs needed)
+      - name: Build (static, no CURL, no DLLs needed)
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DLLAMA_CURL=ON -DBUILD_SHARED_LIBS=OFF
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DLLAMA_CURL=OFF -DBUILD_SHARED_LIBS=OFF
           cmake --build build --config Release
 
-      - name: Collect all exe and dll files
+      - name: Collect exe files
         run: |
           mkdir out
           Get-ChildItem -Path build -Filter "llama-*.exe" -Recurse | Copy-Item -Destination out
