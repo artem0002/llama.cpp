@@ -30,38 +30,12 @@ jobs:
         run: cmake --build build --config Release
         shell: cmd
 
-      - name: Find all executables
-        run: |
-          Write-Host "=== Searching for all .exe files ==="
-          Get-ChildItem -Path build -Filter "*.exe" -Recurse | ForEach-Object {
-            Write-Host "Found: $($_.FullName)  Size: $($_.Length) bytes"
-          }
-          Write-Host ""
-          Write-Host "=== Searching for all .dll files ==="
-          Get-ChildItem -Path build -Filter "*.dll" -Recurse | ForEach-Object {
-            Write-Host "Found DLL: $($_.FullName)  Size: $($_.Length) bytes"
-          }
-        shell: pwsh
-
-      - name: Collect and check dependencies
+      - name: Collect
         run: |
           mkdir out
-          Get-ChildItem -Path build -Filter "llama-*.exe" -Recurse | Copy-Item -Destination out
-          Get-ChildItem -Path build -Filter "llama.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
-          Get-ChildItem -Path build -Filter "ggml-*.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
-          
-          Write-Host "=== Files in out/ ==="
-          Get-ChildItem out | ForEach-Object {
-            Write-Host "  $($_.Name)  Size: $($_.Length) bytes"
-          }
-          
-          Write-Host ""
-          Write-Host "=== Checking DLL dependencies ==="
-          foreach ($exe in (Get-ChildItem out -Filter "*.exe")) {
-            Write-Host "--- Dependencies of $($exe.Name) ---"
-            & "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\dumpbin.exe" /dependents $exe.FullName
-            Write-Host ""
-          }
+          Get-ChildItem -Path build -Filter "llama-server.exe" -Recurse | Copy-Item -Destination out
+          Get-ChildItem -Path build -Filter "llama-cli.exe" -Recurse | Copy-Item -Destination out
+          Get-ChildItem out
         shell: pwsh
 
       - name: Package
