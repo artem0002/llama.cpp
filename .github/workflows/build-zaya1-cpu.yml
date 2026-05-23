@@ -11,26 +11,22 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build (static, no CURL, no DLLs needed)
+      - name: Build
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DLLAMA_CURL=OFF -DBUILD_SHARED_LIBS=OFF
-          cmake --build build --config Release
-
-      - name: Collect exe files
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DLLAMA_CURL=OFF -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF
+          cmake --build build --config Release --target llama-server
+          cmake --build build --config Release --target llama-cli
+        shell: cmd
+      - name: Collect
         run: |
           mkdir out
-          Get-ChildItem -Path build -Filter "llama-*.exe" -Recurse | Copy-Item -Destination out
-          Get-ChildItem -Path build -Filter "*.dll" -Recurse | Copy-Item -Destination out
+          Get-ChildItem -Path build\bin\Release -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
+          Get-ChildItem -Path build -Filter "llama-server.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
+          Get-ChildItem -Path build -Filter "llama-cli.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
+          Get-ChildItem out
         shell: pwsh
-
-      - name: List files
-        run: Get-ChildItem out
-        shell: pwsh
-
       - name: Package
         run: Compress-Archive -Path out -DestinationPath llama-zaya1-cpu-windows.zip
-
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
