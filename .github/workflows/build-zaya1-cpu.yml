@@ -11,40 +11,25 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-
       - name: Configure
         run: |
-          cmake -B build ^
-            -DCMAKE_BUILD_TYPE=Release ^
-            -DGGML_NATIVE=OFF ^
-            -DLLAMA_OPENSSL=OFF ^
-            -DBUILD_SHARED_LIBS=OFF ^
-            -DGGML_OPENMP=OFF ^
-            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ^
-            -DLLAMA_BUILD_TESTS=OFF ^
-            -DLLAMA_BUILD_EXAMPLES=ON ^
-            -DLLAMA_BUILD_SERVER=ON
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DLLAMA_OPENSSL=OFF -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON -DLLAMA_BUILD_SERVER=ON
         shell: cmd
-
       - name: Build
         run: cmake --build build --config Release
         shell: cmd
-
       - name: Test exe
         run: |
           $exe = Get-ChildItem -Path build -Filter "llama-cli.exe" -Recurse | Select-Object -First 1
           if ($exe) {
-            Write-Host "Found llama-cli.exe at: $($exe.FullName)"
-            Write-Host "File size: $($exe.Length) bytes"
-            Write-Host "Running llama-cli --version..."
+            Write-Host "Found: $($exe.FullName)"
             & $exe.FullName --version
-            Write-Host "SUCCESS: exe runs without DLL errors!"
+            Write-Host "SUCCESS!"
           } else {
-            Write-Host "ERROR: llama-cli.exe not found!"
+            Write-Host "ERROR: exe not found"
             exit 1
           }
         shell: pwsh
-
       - name: Collect
         run: |
           mkdir out
@@ -52,11 +37,9 @@ jobs:
           Get-ChildItem -Path build -Filter "llama-cli.exe" -Recurse | Copy-Item -Destination out
           Get-ChildItem out
         shell: pwsh
-
       - name: Package
         run: Compress-Archive -Path out -DestinationPath llama-zaya1-cpu-windows.zip
         shell: pwsh
-
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
