@@ -11,22 +11,63 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+
+      - name: Configure
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DLLAMA_CURL=OFF -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF
-          cmake --build build --config Release --target llama-server
-          cmake --build build --config Release --target llama-cli
+          cmake -B build ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DGGML_NATIVE=OFF ^
+            -DLLAMA_CURL=OFF ^
+            -DBUILD_SHARED_LIBS=OFF ^
+            -DGGML_OPENMP=OFF ^
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ^
+            -DLLAMA_BUILD_TESTS=OFF ^
+            -DLLAMA_BUILD_EXAMPLES=ON ^
+            -DLLAMA_BUILD_SERVER=ON
         shell: cmd
-      - name: Collect
+
+      - name: Build
+        run: cmake --build build --config Release
+        shell: cmd
+
+      - name: Find all executables
+        run: |
+          Write-Host "=== Searching for all .exe files ==="
+          Get-ChildItem -Path build -Filter "*.exe" -Recurse | ForEach-Object {
+            Write-Host "Found: $($_.FullName)  Size: $($_.Length) bytes"
+          }
+          Write-Host ""
+          Write-Host "=== Searching for all .dll files ==="
+          Get-ChildItem -Path build -Filter "*.dll" -Recurse | ForEach-Object {
+            Write-Host "Found DLL: $($_.FullName)  Size: $($_.Length) bytes"
+          }
+        shell: pwsh
+
+      - name: Collect and check dependencies
         run: |
           mkdir out
-          Get-ChildItem -Path build\bin\Release -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
-          Get-ChildItem -Path build -Filter "llama-server.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
-          Get-ChildItem -Path build -Filter "llama-cli.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
-          Get-ChildItem out
+          Get-ChildItem -Path build -Filter "llama-*.exe" -Recurse | Copy-Item -Destination out
+          Get-ChildItem -Path build -Filter "llama.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
+          Get-ChildItem -Path build -Filter "ggml-*.exe" -Recurse -ErrorAction SilentlyContinue | Copy-Item -Destination out
+          
+          Write-Host "=== Files in out/ ==="
+          Get-ChildItem out | ForEach-Object {
+            Write-Host "  $($_.Name)  Size: $($_.Length) bytes"
+          }
+          
+          Write-Host ""
+          Write-Host "=== Checking DLL dependencies ==="
+          foreach ($exe in (Get-ChildItem out -Filter "*.exe")) {
+            Write-Host "--- Dependencies of $($exe.Name) ---"
+            & "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\dumpbin.exe" /dependents $exe.FullName
+            Write-Host ""
+          }
         shell: pwsh
+
       - name: Package
         run: Compress-Archive -Path out -DestinationPath llama-zaya1-cpu-windows.zip
+        shell: pwsh
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
