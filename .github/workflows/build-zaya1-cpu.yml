@@ -21,7 +21,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DLLAMA_CURL=ON && cmake --build build --config Release
-      - run: mkdir out && copy build\bin\Release\llama-*.exe out\ && Compress-Archive -Path out -DestinationPath llama-zaya1-cpu-windows.zip
+      - run: |
+          mkdir out
+          copy build\bin\Release\llama-*.exe out\
+          copy build\bin\Release\*.dll out\
+          copy build\src\Release\llama.dll out\ 2>$null
+          copy build\src\Release\llama-common.dll out\ 2>$null
+          copy build\ggml\src\Release\ggml-base.dll out\ 2>$null
+          copy build\ggml\src\Release\*.dll out\ 2>$null
+          copy build\bin\Release\mtmd.dll out\ 2>$null
+        shell: pwsh
+      - run: Compress-Archive -Path out -DestinationPath llama-zaya1-cpu-windows.zip
       - uses: actions/upload-artifact@v4
         with: {name: llama-zaya1-cpu-windows, path: llama-zaya1-cpu-windows.zip, retention-days: 90}
   build-macos-arm64:
@@ -29,6 +39,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DGGML_METAL=OFF -DLLAMA_CURL=ON && cmake --build build --config Release -j$(sysctl -n hw.ncpu)
-      - run: mkdir -p out && cp build/bin/llama-* out/ 2>/dev/null; chmod +x out/llama-* && zip -r llama-zaya1-cpu-macos-arm64.zip out/
+      - run: mkdir -p out && cp build/bin/llama-* out/ 2>/dev/null; cp build/src/libllama.* out/ 2>/dev/null; cp build/ggml/src/libggml.* out/ 2>/dev/null; chmod +x out/llama-* && zip -r llama-zaya1-cpu-macos-arm64.zip out/
       - uses: actions/upload-artifact@v4
         with: {name: llama-zaya1-cpu-macos-arm64, path: llama-zaya1-cpu-macos-arm64.zip, retention-days: 90}
